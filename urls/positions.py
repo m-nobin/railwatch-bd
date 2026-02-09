@@ -18,10 +18,10 @@ class LocationUpdate(BaseModel):
     # Note: scheduled_position is calculated automatically from train data
     
     @validator('train_id', 'id')
-    def validate_train_id(cls, v):
-        """Validate train ID format"""
+    def validate_id_fields(cls, v):
+        """Validate train/id field format"""
         if v is not None and not re.match(r'^[a-zA-Z0-9_-]{1,20}$', v):
-            raise ValueError('Invalid train_id format')
+            raise ValueError('Invalid train_id/id format')
         return v
     
     @validator('user_id')

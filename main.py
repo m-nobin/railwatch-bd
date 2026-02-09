@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
     if tracker.health_check():
         logger.info("✓ Redis connection established")
     else:
-        logger.error("✗ Redis connection failed - position tracking won't work!")
+        logger.error("X Redis connection failed - position tracking won't work!")
         raise RuntimeError("Redis connection failed - cannot start server without Redis")
     
     # Precalculate routes and distances

@@ -5,6 +5,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Expected data keys in both legacy and new format
+DATA_KEYS = ['sid_to_sloc', 'sid_to_sname', 'train_names', 'offday', 'tid_to_stations']
+
 
 def load_data():
     """Load data from JSON file
@@ -31,8 +34,7 @@ def load_data():
             else:
                 # Legacy format - all keys at top level
                 # Extract only the data keys, not metadata
-                data_keys = ['sid_to_sloc', 'sid_to_sname', 'train_names', 'offday', 'tid_to_stations']
-                data_content = {k: raw_data[k] for k in data_keys if k in raw_data}
+                data_content = {k: raw_data[k] for k in DATA_KEYS if k in raw_data}
                 revision = raw_data.get('CURRENT_REVISION', raw_data.get('Revision', 0))
             
             logger.info(f"Loaded data.json successfully (revision: {revision})")

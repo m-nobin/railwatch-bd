@@ -49,10 +49,11 @@ async def github_webhook(request: Request):
     
     # Security: Use array form instead of shell=True to prevent command injection
     try:
-        subprocess.Popen(["bash", "restart_app.sh"], 
-                        stdout=open('restart.log', 'a'),
-                        stderr=subprocess.STDOUT,
-                        start_new_session=True)
+        with open('restart.log', 'a') as log_file:
+            subprocess.Popen(["bash", "restart_app.sh"], 
+                            stdout=log_file,
+                            stderr=subprocess.STDOUT,
+                            start_new_session=True)
         logger.info("Restart script triggered successfully")
     except Exception as e:
         logger.error(f"Failed to trigger restart script: {e}")
