@@ -2,21 +2,39 @@
 
 A real-time train tracking system for Bangladesh Railway (BR) trains. This FastAPI-based server provides live train position updates and allows users to contribute location data.
 
+## 📚 Documentation
+
+- **[API Documentation](API.md)** - Complete API reference with examples
+- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment instructions
+- **[Security Policy](SECURITY.md)** - Security best practices and guidelines
+
 ## 🚂 About
 
 This project helps passengers track Bangladesh Railway trains in real-time by crowdsourcing location updates from users. The system processes multiple user reports to provide accurate train positions.
+
+## ✨ Features
+
+- **Real-time Position Tracking** - Live train positions updated by users
+- **Bot Validation** - Trusted bot users provide position bounds for validation
+- **Scheduled Position Calculation** - Automatic position estimation based on timetables
+- **Two-Train Routes** - Find connections requiring train changes
+- **Issue Reporting** - Users can report incorrect information
+- **Redis-based Storage** - Fast, scalable position tracking
+- **Auto-deployment** - GitHub webhook integration for automatic updates
 
 ## 🛠️ Setup
 
 ### Prerequisites
 - Python 3.8+
+- Redis 5.0+
 - pip
 
-### Installation
+### Quick Start
+
 1. Clone the repository:
 ```bash
-git clone https://github.com/jisangain/find-my-br-train.git
-cd find-my-br-train
+git clone https://github.com/m-nobin/railwatch-bd.git
+cd railwatch-bd
 ```
 
 2. Install dependencies:
@@ -24,15 +42,34 @@ cd find-my-br-train
 pip install -r requirements.txt
 ```
 
-3. Run the server:
+3. Configure environment:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+nano .env
+```
+
+4. Start Redis:
+```bash
+# Ubuntu/Debian
+sudo systemctl start redis-server
+
+# macOS
+brew services start redis
+```
+
+5. Run the server:
 ```bash
 python3 main.py
 ```
 
 The server will start on `http://localhost:8000`
 
+For production deployment, see **[DEPLOYMENT.md](DEPLOYMENT.md)**
+
 ## 📊 API Endpoints
 
+### Core Endpoints
 - `GET /` - API information and available endpoints
 - `GET /health` - Server health check
 - `GET /initrevision` - Get current data revision
@@ -40,7 +77,10 @@ The server will start on `http://localhost:8000`
 - `GET /current/{train_ids}` - Get current positions for specified trains
 - `POST /sendupdate` - Submit location update
 - `POST /fix` - Report incorrect information
-- `GET /docs` - Interactive API documentation
+- `GET /docs` - Interactive API documentation (Swagger UI)
+- `GET /redoc` - Alternative API documentation (ReDoc)
+
+For complete API documentation with examples, see **[API.md](API.md)**
 
 ## 🤝 Contributing
 
@@ -128,17 +168,50 @@ Example:
 1. **Fork** the repository
 2. **Create a new branch** for your changes
 3. **Update data.json** following the structure above
-4. **Increment CURRENT_REVISION** by 1
-5. **Test your changes** by running data_validator.py
-6. **Location_analysis.py** creates html file to debug geo location.
-7. **Submit a pull request** with a clear description
+4. **Increment CURRENT_REVISION** by 1 (or **Revision** for legacy format)
+5. **Test your changes** by running `python3 data_validator.py`
+6. **Submit a pull request** with a clear description
 
 ### ✅ Before Contributing
 
 - Verify train information from official Bangladesh Railway sources
 - Double-check station coordinates using multiple mapping services
 - Ensure station names are consistent with existing naming conventions
-- Test that your JSON is valid (use a JSON validator)
+- Test that your JSON is valid
+
+## 🔒 Security
+
+See **[SECURITY.md](SECURITY.md)** for:
+- Security best practices
+- Environment configuration
+- CORS and authentication setup
+- Vulnerability reporting
+
+## 🚀 Production Deployment
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for:
+- systemd service configuration
+- Docker deployment
+- nginx reverse proxy setup
+- SSL/TLS configuration
+- Monitoring and maintenance
+
+## 🧪 Testing
+
+### Validate Data Structure
+```bash
+python3 data_validator.py
+```
+
+### Test API
+```bash
+# Start server
+python3 main.py
+
+# In another terminal
+curl http://localhost:8000/health
+curl http://localhost:8000/initrevision
+```
 
 ### 🔍 Data Sources
 
