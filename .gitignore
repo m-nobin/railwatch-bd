@@ -6,3 +6,8 @@ __pycache__/
 *.pyd
 scrap.py
 two_train_routes.json
+.env
+.env.local
+*.log
+issue_reports.log
+restart.log

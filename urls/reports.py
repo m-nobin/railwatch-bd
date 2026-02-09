@@ -1,10 +1,14 @@
 # reports.py - Issue reporting and viewing endpoints
 
 from fastapi.responses import HTMLResponse
+from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import json
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IssueReport(BaseModel):
@@ -23,34 +27,35 @@ class IssueReport(BaseModel):
 
 async def report_issue_post(report: IssueReport):
     """Handle JSON issue report submissions from the app"""
-    print(f"\n📋 ISSUE REPORT RECEIVED:")
-    print(f"   Type: {report.issue_type or 'Not specified'}")
-    print(f"   Train: {report.train_name or 'Unknown'} ({report.train_id or 'Unknown ID'})")
-    print(f"   User: {report.user_id}")
-    print(f"   Time: {report.timestamp or 'Not specified'}")
-    print(f"   Description: {report.description or 'No description'}")
+    logger.info(f"\n📋 ISSUE REPORT RECEIVED:")
+    logger.info(f"   Type: {report.issue_type or 'Not specified'}")
+    logger.info(f"   Train: {report.train_name or 'Unknown'} ({report.train_id or 'Unknown ID'})")
+    logger.info(f"   User: {report.user_id}")
+    logger.info(f"   Time: {report.timestamp or 'Not specified'}")
+    logger.info(f"   Description: {report.description or 'No description'}")
     
     if report.blue_train_position:
         gps_indicator = "(GPS)" if report.is_using_gps else "(System)"
-        print(f"   Blue Train Position: {report.blue_train_position} {gps_indicator}")
+        logger.info(f"   Blue Train Position: {report.blue_train_position} {gps_indicator}")
     if report.gray_train_position:
-        print(f"   Gray Train Position: {report.gray_train_position} (User reports)")
+        logger.info(f"   Gray Train Position: {report.gray_train_position} (User reports)")
     
     if report.latitude is not None and report.longitude is not None:
-        print(f"   📍 Location: {report.latitude:.6f}, {report.longitude:.6f}")
-        print(f"   🗺️  Maps Link: https://maps.google.com/maps?q={report.latitude},{report.longitude}")
+        logger.info(f"   📍 Location: {report.latitude:.6f}, {report.longitude:.6f}")
+        logger.info(f"   🗺️  Maps Link: https://maps.google.com/maps?q={report.latitude},{report.longitude}")
     elif report.latitude is not None or report.longitude is not None:
-        print(f"   ⚠️  Partial location data: lat={report.latitude}, lng={report.longitude}")
+        logger.warning(f"   ⚠️  Partial location data: lat={report.latitude}, lng={report.longitude}")
     else:
-        print(f"   📍 Location: Not available")
+        logger.info(f"   📍 Location: Not available")
     
-    print("   ✅ Issue report logged successfully\n")
+    logger.info("   ✅ Issue report logged successfully\n")
     
     try:
         with open("issue_reports.log", "a") as f:
             f.write(json.dumps(report.model_dump()) + "\n")
     except Exception as e:
-        print(f"Failed to write issue report to file: {e}")
+        logger.error(f"Failed to write issue report to file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save report")
 
     return {"status": "success", "message": "Issue report received"}
 
