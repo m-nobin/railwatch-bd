@@ -1,8 +1,12 @@
 # positions.py - Train position endpoints
 
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional, Dict
+import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class LocationUpdate(BaseModel):
@@ -12,13 +16,34 @@ class LocationUpdate(BaseModel):
     time: int
     position: float
     # Note: scheduled_position is calculated automatically from train data
+    
+    @validator('train_id', 'id')
+    def validate_train_id(cls, v):
+        """Validate train ID format"""
+        if v is not None and not re.match(r'^[a-zA-Z0-9_-]{1,20}$', v):
+            raise ValueError('Invalid train_id format')
+        return v
+    
+    @validator('user_id')
+    def validate_user_id(cls, v):
+        """Validate user ID format"""
+        if v and not re.match(r'^[a-zA-Z0-9_-]{1,50}$', v):
+            raise ValueError('Invalid user_id format')
+        return v
+    
+    @validator('position')
+    def validate_position(cls, v):
+        """Validate position is within reasonable bounds"""
+        if not (0 <= v <= 150):
+            raise ValueError('Position must be between 0 and 150')
+        return v
 
 
 def get_current_positions(train_ids: str, tracker) -> Dict:
     """Return current positions for specified trains"""
     ids = train_ids.split(',')
     positions = tracker.get_positions(ids)
-    print(f"Current positions for trains {ids}: {positions}")
+    logger.info(f"Current positions requested for trains {ids}: found {len(positions)} positions")
     return positions
 
 
@@ -38,22 +63,19 @@ def receive_update(update: LocationUpdate, tracker):
     timestamp = update.time
     position = update.position
     
-    if not (0 <= update.position <= 150):
-        raise HTTPException(400, "Invalid position value")
-    
     if train_id is None or timestamp is None or position is None:
         raise HTTPException(status_code=400, detail="Missing required fields")
     
     is_bot = user_id.lower().startswith("bot")
-    print(f"{'[BOT]' if is_bot else '[USER]'} train={train_id} pos={position} user={user_id} ts={timestamp}")
+    logger.info(f"{'[BOT]' if is_bot else '[USER]'} train={train_id} pos={position} user={user_id} ts={timestamp}")
     
     # Store in Redis (scheduled_position is calculated automatically from train data)
     success, message = tracker.push(train_id, user_id, position, timestamp)
     
     if not success:
-        print(f"Position rejected: {message}")
+        logger.warning(f"Position rejected for train {train_id}: {message}")
         raise HTTPException(400, f"Position rejected: {message}")
     
-    print(f"Added update to Redis: train={train_id}, user={user_id}, pos={position}")
+    logger.debug(f"Position update accepted: train={train_id}, user={user_id}, pos={position}")
     
     return {"status": "success", "message": message}

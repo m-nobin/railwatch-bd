@@ -7,6 +7,9 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 import redis
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Bangladesh timezone - train schedules are in this timezone
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -498,5 +501,6 @@ class RedisTrainTracker:
         try:
             self.redis.ping()
             return True
-        except:
+        except (redis.ConnectionError, redis.TimeoutError, ConnectionRefusedError) as e:
+            logger.error(f"Redis health check failed: {e}")
             return False

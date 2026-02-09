@@ -3,6 +3,9 @@
 import json
 import math
 from typing import Dict, Any, List, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -27,7 +30,7 @@ def precalculate_train_routes(data: Dict[str, Any]) -> Dict:
         regular_stops = [station[0] for station in stations if len(station) >= 2 and station[1] == 1]
         train_routes[train_id] = regular_stops
     
-    print(f"✓ Precalculated routes for {len(train_routes)} trains with regular stops only")
+    logger.info(f"✓ Precalculated routes for {len(train_routes)} trains with regular stops only")
     return train_routes
 
 
@@ -41,7 +44,7 @@ def precalculate_station_distances(data: Dict[str, Any]) -> Dict:
         if not (coords[0] == 0.0 and coords[1] == 0.0)
     }
     
-    print(f"Calculating distances between {len(valid_stations)} stations...")
+    logger.info(f"Calculating distances between {len(valid_stations)} stations...")
     
     total_stations = len(valid_stations)
     processed = 0
@@ -63,9 +66,9 @@ def precalculate_station_distances(data: Dict[str, Any]) -> Dict:
         processed += 1
         if processed % 50 == 0 or processed == total_stations:
             progress = (processed / total_stations) * 100
-            print(f"Progress: {progress:.1f}% ({processed}/{total_stations} stations)")
+            logger.info(f"Progress: {progress:.1f}% ({processed}/{total_stations} stations)")
     
-    print(f"✓ Precalculated and sorted distances for {len(station_distances)} stations")
+    logger.info(f"✓ Precalculated and sorted distances for {len(station_distances)} stations")
     return station_distances
 
 
@@ -76,7 +79,8 @@ def parse_time(time_str):
     try:
         hours, minutes = map(int, time_str.split(':'))
         return hours * 60 + minutes
-    except:
+    except (ValueError, AttributeError) as e:
+        logger.warning(f"Failed to parse time string '{time_str}': {e}")
         return None
 
 
@@ -146,7 +150,7 @@ def precalculate_two_train_routes(data: Dict[str, Any], current_revision: int) -
         with open('two_train_routes.json', 'r') as f:
             cached_data = json.load(f)
             if cached_data.get("revision") == current_revision:
-                print("✓ Two-train routes loaded from cache (revision matches)")
+                logger.info("✓ Two-train routes loaded from cache (revision matches)")
                 routes = {}
                 for key, value in cached_data.get("routes", {}).items():
                     from_sid, to_sid = key.split("|||")
@@ -155,10 +159,10 @@ def precalculate_two_train_routes(data: Dict[str, Any], current_revision: int) -
                         for r in value
                     ]
                 return routes
-    except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        pass
+    except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+        logger.info(f"Cache not found or invalid, will recalculate: {e}")
     
-    print("Starting precalculation of two-train routes...")
+    logger.info("Starting precalculation of two-train routes...")
     
     tid_to_stations = data.get("tid_to_stations", {})
     routes = {}
@@ -176,7 +180,7 @@ def precalculate_two_train_routes(data: Dict[str, Any], current_revision: int) -
             processed_pairs += 1
             if processed_pairs % 500 == 0:
                 progress = (processed_pairs / total_train_pairs) * 100
-                print(f"Progress: {progress:.1f}% ({processed_pairs}/{total_train_pairs} train pairs processed)")
+                logger.info(f"Progress: {progress:.1f}% ({processed_pairs}/{total_train_pairs} train pairs processed)")
             
             train2_stations = tid_to_stations[train2_id]
             common_stations = find_common_stations(train1_stations, train2_stations)
@@ -227,7 +231,7 @@ def precalculate_two_train_routes(data: Dict[str, Any], current_revision: int) -
     for key in routes:
         routes[key] = routes[key][:5]
     
-    print(f"✓ Precalculation complete. Found {len(routes)} station pairs with two-train routes.")
+    logger.info(f"✓ Precalculation complete. Found {len(routes)} station pairs with two-train routes.")
     
     # Save to file
     try:
@@ -243,8 +247,8 @@ def precalculate_two_train_routes(data: Dict[str, Any], current_revision: int) -
                 }
             }
             json.dump(json_routes, f, indent=2)
-        print("✓ Two-train routes saved to two_train_routes.json")
+        logger.info("✓ Two-train routes saved to two_train_routes.json")
     except Exception as e:
-        print(f"✗ Error saving two-train routes: {e}")
+        logger.error(f"✗ Error saving two-train routes: {e}")
     
     return routes

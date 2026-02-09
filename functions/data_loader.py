@@ -1,14 +1,31 @@
 # data_loader.py - Data loading utilities
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def load_data():
-    """Load data from JSON file"""
+    """Load data from JSON file
+    
+    Returns:
+        tuple: (data_dict, revision) on success
+    
+    Raises:
+        FileNotFoundError: If data.json doesn't exist
+        ValueError: If data.json is invalid
+    """
     try:
         with open('data.json', 'r') as f:
             data = json.load(f)
-            return data, data['Revision']
+            data_content = data.get('DATA', {})
+            revision = data.get('CURRENT_REVISION', data.get('Revision', 0))
+            logger.info(f"Loaded data.json successfully (revision: {revision})")
+            return data_content, revision
     except FileNotFoundError:
-        print("Warning: data.json not found, using fallback data")
-        return -1, 0
+        logger.error("data.json not found")
+        raise FileNotFoundError("data.json is required but not found")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in data.json: {e}")
+        raise ValueError(f"data.json contains invalid JSON: {e}")

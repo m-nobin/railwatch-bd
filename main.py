@@ -3,6 +3,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
+import os
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Import utility functions
 from functions.data_loader import load_data
@@ -23,8 +32,20 @@ TWO_TRAIN_ROUTES = {}
 TRAIN_ROUTES = {}
 STATION_DISTANCES = {}
 
+# Configuration from environment variables
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+TTL_SECONDS = int(os.getenv("TTL_SECONDS", "600"))
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
+
 # Redis-based train tracker (replaces AsyncTimedStack)
-tracker = RedisTrainTracker(host="localhost", port=6379, db=0, ttl_seconds=600)
+tracker = RedisTrainTracker(
+    host=REDIS_HOST, 
+    port=REDIS_PORT, 
+    db=REDIS_DB, 
+    ttl_seconds=TTL_SECONDS
+)
 tracker.set_train_data(DATA)  # Provide train schedule data for scheduled position calculation
 
 @asynccontextmanager
@@ -32,30 +53,33 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan"""
     global TWO_TRAIN_ROUTES, TRAIN_ROUTES, STATION_DISTANCES
     
-    print("Starting Find My BR Train FastAPI Server...")
-    print("API Base URL: train.sportsprime.live")
-    print("Health Check: train.sportsprime.live/health")
-    print("\nPress Ctrl+C to stop the server\n")
+    logger.info("Starting Find My BR Train FastAPI Server...")
+    logger.info("API Base URL: train.sportsprime.live")
+    logger.info("Health Check: train.sportsprime.live/health")
+    logger.info("\nPress Ctrl+C to stop the server\n")
     
-    # Check Redis connection
+    # Check Redis connection - fail fast if Redis is unavailable
     if tracker.health_check():
-        print("✓ Redis connection established")
+        logger.info("✓ Redis connection established")
     else:
-        print("⚠ Warning: Redis connection failed - position tracking won't work!")
+        logger.error("✗ Redis connection failed - position tracking won't work!")
+        raise RuntimeError("Redis connection failed - cannot start server without Redis")
     
     # Precalculate routes and distances
+    logger.info("Precalculating train routes...")
     TRAIN_ROUTES = precalculate_train_routes(DATA)
+    logger.info("Precalculating station distances...")
     STATION_DISTANCES = precalculate_station_distances(DATA)
     
-    print("\n" + "="*60)
-    print("INITIALIZING TWO-TRAIN ROUTE PRECALCULATION")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("INITIALIZING TWO-TRAIN ROUTE PRECALCULATION")
+    logger.info("="*60)
     TWO_TRAIN_ROUTES = precalculate_two_train_routes(DATA, CURRENT_REVISION)
-    print("="*60 + "\n")
+    logger.info("="*60 + "\n")
     
     yield
     
-    print("Shutting down FastAPI Server...")
+    logger.info("Shutting down FastAPI Server...")
 
 
 app = FastAPI(
@@ -66,9 +90,18 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Security: Configure CORS based on environment variable
+# In production, set ALLOWED_ORIGINS to specific domains
+if ALLOWED_ORIGINS == "*":
+    logger.warning("CORS configured to allow all origins (*) - not recommended for production")
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [origin.strip() for origin in ALLOWED_ORIGINS.split(",")]
+    logger.info(f"CORS configured for origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -175,10 +208,14 @@ async def root():
 
 
 if __name__ == '__main__':
+    # Get server configuration from environment
+    SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+    SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+    
     uvicorn.run(
         "main:app",
-        host='0.0.0.0',
-        port=8000,
+        host=SERVER_HOST,
+        port=SERVER_PORT,
         reload=False,
         log_level="info"
     )
